@@ -102,7 +102,7 @@ export default function Produto() {
               {restante < 1 ? "Sem estoque" : "Adicionar ao carrinho"}
             </button>
           </form>
-          <p className="nota">O pagamento é simulado. Nada é cobrado de verdade.</p>
+          <p className="nota">Na finalização, o carrinho vira uma mensagem pronta no WhatsApp.</p>
         </div>
       </section>
 

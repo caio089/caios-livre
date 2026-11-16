@@ -6,7 +6,6 @@ import { LOJA } from "../marca";
 import { useAnimacao } from "../animacao";
 import { useLoja } from "../contexto";
 import { Foto } from "../componentes/CardProduto";
-import Pagamento from "../componentes/Pagamento";
 import Preco from "../componentes/Preco";
 
 export default function Carrinho() {
@@ -14,7 +13,7 @@ export default function Carrinho() {
   const animacao = useAnimacao();
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState("");
-  const [pagando, setPagando] = useState(false);
+  const [pedido, setPedido] = useState(false);
 
   function carregar() {
     return api("/api/carrinho")
@@ -90,25 +89,21 @@ export default function Carrinho() {
             <h2>Resumo da compra</h2>
             <Preco valor={dados.total} grande />
             <p className="nota">{dados.itens.length} produto{dados.itens.length === 1 ? "" : "s"}</p>
-            <button className="botao botao-largo" type="button" onClick={() => setPagando(true)}>
-              Pagar agora
+            <button className="botao botao-largo" type="button" onClick={() => setPedido(true)}>
+              Finalizar no WhatsApp
             </button>
+            {pedido && (
+              <div className="pedido">
+                <p>Mensagem pronta do carrinho</p>
+                <pre className="mensagem-pedido">{dados.texto}</pre>
+                <a className="botao botao-largo" href={dados.whatsapp} target="_blank" rel="noopener noreferrer">
+                  Abrir WhatsApp
+                </a>
+              </div>
+            )}
           </aside>
         </div>
       )}
-      <AnimatePresence>
-        {pagando && (
-          <Pagamento
-            total={dados.total}
-            onFechar={() => setPagando(false)}
-            onAprovado={async (recibo) => {
-              definirQuantidade(0);
-              avisar(`${recibo.mensagem} ${recibo.protocolo}`);
-              await carregar();
-            }}
-          />
-        )}
-      </AnimatePresence>
     </>
   );
 }

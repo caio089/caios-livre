@@ -4,13 +4,15 @@ O carrinho fica na sessão do Flask. O Redis só guarda o que foi visto,
 e o MongoDB continua sendo a fonte dos produtos.
 """
 
+from urllib.parse import quote
 from uuid import uuid4
 
 from flask import request, session
 
 from banco.erros import BancoIndisponivel
-from banco.mongo_produtos import baixar_estoque, buscar_produto, buscar_varios, devolver_estoque
+from banco.mongo_produtos import buscar_produto, buscar_varios
 from banco.redis_cache import listar_selecionados, registrar_selecionado
+from config import WHATSAPP_NUMERO
 from imagens import salvar_imagem
 from validacao import ler_estoque, ler_preco, texto_obrigatorio, url_de_imagem
 
@@ -100,31 +102,25 @@ def montar_carrinho() -> tuple[list[dict], float]:
     return itens, round(total, 2)
 
 
-def finalizar_pagamento(metodo: str) -> dict:
-    """Baixa o estoque e esvazia o carrinho. Não guarda dados de cartão."""
-    if metodo not in {"cartao", "pix"}:
-        raise ErroLoja("Escolha cartão ou Pix.")
+def formatar_reais(valor: float) -> str:
+    texto = f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {texto}"
 
-    itens, total = montar_carrinho()
-    if not itens:
-        raise ErroLoja("O carrinho está vazio.")
 
-    baixados = []
-    try:
-        for item in itens:
-            if not baixar_estoque(item["id"], item["quantidade"]):
-                raise ErroLoja(f"Sem estoque suficiente de {item['nome']}.", 409)
-            baixados.append(item)
-    except Exception:
-        for item in baixados:
-            devolver_estoque(item["id"], item["quantidade"])
-        raise
+def texto_do_pedido(itens: list[dict], total: float) -> str:
+    """Mensagem pronta, no formato pedido da loja."""
+    linhas = ["Olá, gostaria de pedir:"]
+    linhas.extend(f"{item['quantidade']}x {item['nome']}" for item in itens)
+    linhas.append(f"Total: {formatar_reais(total)}")
+    return "\n".join(linhas)
 
-    salvar_carrinho({})
-    return {
-        "protocolo": f"CL-{uuid4().hex[:6].upper()}",
-        "total": total,
-    }
+
+def link_do_whatsapp(texto: str) -> str:
+    """Abre a conversa com a mensagem já escrita."""
+    mensagem = quote(texto)
+    if WHATSAPP_NUMERO:
+        return f"https://wa.me/{WHATSAPP_NUMERO}?text={mensagem}"
+    return f"https://api.whatsapp.com/send?text={mensagem}"
 
 
 def ler_produto_do_formulario() -> dict:

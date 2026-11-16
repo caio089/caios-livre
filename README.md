@@ -1,16 +1,16 @@
 # Caio's livre
 
-Loja web feita para a 3ª avaliação de Banco de Dados. A ideia é mostrar um sistema que usa mais de um banco, cada um no trabalho em que ele é mais adequado, com uma interface de verdade: catálogo, carrinho, pagamento simulado e painel de administrador.
+Loja web feita para a 3ª avaliação de Banco de Dados. A ideia é mostrar um sistema que usa mais de um banco, cada um no trabalho em que ele é mais adequado, com uma interface de verdade: catálogo, carrinho, pedido pelo WhatsApp e painel de administrador.
 
 Na tela a marca é **Caio's livre**. A pasta do projeto e o banco do MongoDB continuam com o nome técnico `polistore`. Isso não muda o que o visitante vê.
 
-Demonstração gravada (cerca de 5 a 10 minutos): [Caio's livre no YouTube](https://youtu.be/YoB86M_1txo)
+Demonstração gravada: [Caio's livre no YouTube](https://youtu.be/VDAvhVXa3So)
 
 ## O que o sistema faz
 
-O visitante entra no catálogo, busca um produto, abre a página dele, coloca no carrinho, muda a quantidade e paga. O pagamento é uma simulação: cartão ou Pix. Nenhum valor é cobrado.
+O visitante entra no catálogo, busca um produto, abre a página dele, coloca no carrinho e muda a quantidade. Ao finalizar, a loja monta a mensagem do carrinho e abre o WhatsApp com esse texto já escrito.
 
-O administrador entra com e-mail e senha, publica um produto e ele aparece na hora na vitrine. Também pode excluir um anúncio.
+O administrador entra com o login de demonstração, publica um produto e ele aparece na hora na vitrine. Também pode excluir um anúncio. O código ainda sabe falar com o Supabase, mas a senha da demonstração não chama esse serviço.
 
 ## Arquitetura
 
@@ -30,7 +30,7 @@ Navegador (React)
 
 | Peça | Onde fica | Por que está ali |
 |---|---|---|
-| Login do administrador | Supabase Auth, em cima de PostgreSQL | A senha fica no serviço de autenticação. O código só confere o login. |
+| Login do administrador | Senha mocada na demonstração. O Supabase continua no código para um usuário real. | A tela de login existe. Na gravação entra com `admin@caioslivre.com`. |
 | Produtos | MongoDB, coleção `produtos` | Cada anúncio é um documento: nome, descrição, preço, imagem, categoria e estoque. |
 | Vistos recentemente | Redis | Lista curta por visitante, com expiração. Não substitui o catálogo. |
 | Carrinho | Sessão do Flask | Some quando a sessão acaba. O total é calculado lendo o preço atual no MongoDB. |
@@ -43,22 +43,24 @@ O catálogo **não** é cacheado no Redis. Por isso um produto cadastrado no pai
 |---|---|---|
 | `/` | Visitante | Lista os produtos do MongoDB e filtra por nome, categoria ou descrição. |
 | `/produto/<id>` | Visitante | Mostra o anúncio e grava o id no Redis. |
-| `/carrinho` | Visitante | Soma o total, altera quantidade e abre o pagamento. |
-| `/admin/login` | Administrador | Entra com o login de demonstração ou com o Supabase. |
+| `/carrinho` | Visitante | Soma o total, altera quantidade e abre o WhatsApp com a mensagem pronta. |
+| `/admin/login` | Administrador | Entra com o login de demonstração. |
 | `/admin` | Administrador | Cria e exclui produtos no MongoDB. |
 
 A faixa **Você viu recentemente** lê a lista do Redis e busca esses produtos no MongoDB, na ordem em que foram vistos.
 
-## Pagamento simulado
+## Finalizar no WhatsApp
 
-O botão **Pagar agora** abre um painel com duas formas:
+O botão **Finalizar no WhatsApp** mostra a mensagem do carrinho e abre a conversa. O texto sai assim:
 
-- **Cartão:** nome, número, validade e CVV. Esses dados ficam só no navegador, para a validação da tela. O servidor recebe apenas `cartao` ou `pix`.
-- **Pix:** mostra um código fictício e um botão para confirmar.
+```text
+Olá, gostaria de pedir:
+1x Caderno universitário
+2x Kit de canetas
+Total: R$ 61,90
+```
 
-Se o formato está certo, o Flask baixa o estoque no MongoDB, esvazia o carrinho e devolve um protocolo no formato `CL-XXXXXX`. Um número de cartão terminado em `0000` é recusado de propósito, sem mexer no estoque.
-
-Se o estoque de um item acabar no meio da compra, as unidades já baixadas são devolvidas e a compra não conclui.
+O preço é lido de novo no MongoDB na hora de montar o total. Se `WHATSAPP_NUMERO` estiver preenchido, o link abre o chat desse número. Sem o número, o WhatsApp abre com a mesma mensagem para a pessoa escolher o contato.
 
 ## Como rodar
 
@@ -113,9 +115,7 @@ Para a demonstração, use:
 - E-mail: `admin@caioslivre.com`
 - Senha: `caio123`
 
-Esse login é mocado: não chama o Supabase. Ele existe para o vídeo e para testar o painel.
-
-Se quiser o login real, crie o mesmo e-mail em **Authentication → Users → Add user**, marque **Auto Confirm User** e entre com a senha definida lá. Só o e-mail de `ADMIN_EMAIL` é aceito.
+Esse login é mocado e não chama o Supabase. Só esse e-mail é aceito. Se a senha for outra, o Flask tenta o usuário real no Supabase.
 
 ## Variáveis de ambiente
 
@@ -126,8 +126,9 @@ Se quiser o login real, crie o mesmo e-mail em **Authentication → Users → Ad
 | `MONGODB_URI` | Conexão do MongoDB. No Atlas, o `@` da senha precisa ir como `%40`. |
 | `MONGODB_DB` | Nome do banco. O padrão é `polistore`. |
 | `REDIS_URL` | Conexão do Redis. |
-| `ADMIN_EMAIL` | Único e-mail autorizado no painel. | 
-| `ADMIN_SENHA` | Senha mocada da demonstração. O login real continua no Supabase. |
+| `ADMIN_EMAIL` | Único e-mail autorizado no painel. |
+| `ADMIN_SENHA` | Senha mocada da demonstração. |
+| `WHATSAPP_NUMERO` | Número da loja, só dígitos, com código do país. Exemplo: `5511987654321`. |
 | `SECRET_KEY` | Assina o cookie da sessão. Troque antes de publicar. |
 
 O arquivo `.env` não entra no Git.
@@ -140,7 +141,7 @@ No Atlas, a lista de Network Access precisa liberar o IP de quem vai rodar a loj
 polistore/
   app.py              sobe o Flask e entrega a tela pronta
   rotas_api.py        rotas JSON (/api/...)
-  loja.py             carrinho, pagamento e regras
+  loja.py             carrinho, mensagem do WhatsApp e regras
   config.py           lê o .env
   banco/              Supabase, MongoDB e Redis
   validacao.py        preço, estoque, texto e link de imagem
@@ -176,23 +177,20 @@ O carrinho também fica nesse cookie. Ao montar o total, o sistema busca o preç
 
 ## Cuidados
 
-- A senha real do Supabase não entra no repositório. A senha `caio123` existe só para a demonstração.
+- A senha `caio123` existe só para a demonstração. A senha real do Supabase não entra no repositório.
 - O cookie da sessão é `HttpOnly` e `SameSite=Lax`.
-- O número do cartão do simulador não é enviado ao servidor nem salvo.
-- O painel só abre para o e-mail de `ADMIN_EMAIL`. A senha `ADMIN_SENHA` vale só na demonstração. Qualquer outra senha desse e-mail é conferida no Supabase.
+- O painel da demonstração abre com `ADMIN_EMAIL` e `ADMIN_SENHA`.
+- A mensagem do WhatsApp não grava o pedido em outro banco. O carrinho continua na sessão.
 - Foto local excluída junto com o produto. Link externo não é apagado do disco, porque não está no disco.
 
 ## Vídeo
 
-A demonstração está publicada em [https://youtu.be/YoB86M_1txo](https://youtu.be/YoB86M_1txo).
+A demonstração está em [https://youtu.be/VDAvhVXa3So](https://youtu.be/VDAvhVXa3So). O vídeo percorre:
 
-O que o vídeo percorre:
-
-1. Entrar em `/admin/login` com `admin@caioslivre.com` e a senha `caio123`.
-2. Cadastrar um produto novo no painel. O documento vai para o MongoDB.
-3. Abrir o catálogo e mostrar que o produto já está na busca, sem cache.
-4. Abrir o produto e mostrar a faixa **Você viu recentemente**, gravada no Redis.
-5. Adicionar itens ao carrinho, mudar a quantidade, remover um e mostrar o total.
-6. Clicar em **Pagar agora**, simular cartão ou Pix e mostrar o protocolo `CL-...`.
-
-Nada no pagamento é cobrado. O estoque só muda depois que a simulação é aprovada.
+1. Abertura da Caio's livre e dos três bancos: Supabase no código de login, MongoDB nos produtos e Redis no que foi visto.
+2. Entrada no painel com `admin@caioslivre.com` e a senha `caio123`. Na demonstração essa conferência é mocada.
+3. Cadastro de um produto no painel. O anúncio vira um documento na coleção `produtos`.
+4. Busca no catálogo, com o produto novo aparecendo na hora, sem cache.
+5. Página do produto e a faixa **Você viu recentemente**, gravada no Redis.
+6. Carrinho: incluir itens, mudar a quantidade, remover um e ler o total.
+7. **Finalizar no WhatsApp**, com a mensagem pronta do carrinho e a conversa abrindo no número da loja.

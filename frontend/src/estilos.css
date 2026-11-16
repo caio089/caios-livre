@@ -163,6 +163,17 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px 20px 64px; }
 .passo { display: inline-flex; align-items: center; gap: 8px; padding: 4px; }
 .passo button { width: 32px; height: 32px; background: var(--papel); }
 .resumo { padding: 20px; position: sticky; top: 92px; }
+.pedido { display: grid; gap: 10px; margin-top: 16px; }
+.pedido p { margin: 0; color: var(--suave); font-size: 0.85rem; }
+.mensagem-pedido {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--fonte);
+  background: #f6efe4;
+  border-radius: 14px;
+  padding: 12px;
+  color: var(--tinta);
+}
 .cortina {
   position: fixed; inset: 0; z-index: 20;
   display: grid; place-items: center; padding: 20px;

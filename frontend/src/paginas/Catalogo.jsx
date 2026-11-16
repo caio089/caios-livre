@@ -42,7 +42,7 @@ export default function Catalogo() {
         <p>
           {termo
             ? `${dados.produtos.length} anúncio${dados.produtos.length === 1 ? "" : "s"}`
-            : "Escolha, monte o carrinho e pague na hora."}
+            : "Escolha, monte o carrinho e finalize no WhatsApp."}
         </p>
       </section>
 

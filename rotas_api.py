@@ -24,13 +24,14 @@ from loja import (
     definir_quantidade,
     filtrar_produtos,
     ler_produto_do_formulario,
-    finalizar_pagamento,
+    link_do_whatsapp,
     montar_carrinho,
     produtos_recentes,
     quantidade_no_carrinho,
     quantidade_total,
     registrar_no_redis,
     remover_item,
+    texto_do_pedido,
 )
 from validacao import ler_estoque
 
@@ -153,29 +154,14 @@ def carrinho():
             quantidade_carrinho=quantidade_total(),
         )
 
+    texto = texto_do_pedido(itens, total) if itens else ""
     return jsonify(
         itens=itens,
         total=total,
+        texto=texto,
+        whatsapp=link_do_whatsapp(texto) if texto else None,
         aviso=None,
         quantidade_carrinho=quantidade_total(),
-    )
-
-
-@api.post("/pagamento")
-def pagamento():
-    try:
-        dados = _json_pedido()
-        resultado = finalizar_pagamento(str(dados.get("metodo", "")).strip().lower())
-    except ErroLoja as erro:
-        return falha(erro.mensagem, erro.codigo)
-    except BancoIndisponivel as erro:
-        return falha(erro.mensagem, 503)
-
-    return jsonify(
-        mensagem="Pagamento simulado aprovado.",
-        protocolo=resultado["protocolo"],
-        total=resultado["total"],
-        quantidade_carrinho=0,
     )
 
 
